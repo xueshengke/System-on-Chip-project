@@ -1,0 +1,435 @@
+\documentclass[10pt, mathserif]{beamer}	% font and size
+\mode<presentation>
+{
+	\setbeamercovered{dynamic}	% translucent when using pause
+	\setbeamertemplate{navigation symbols}{}	% hide navigation bars
+	\setbeamertemplate{caption}[numbered]	% numerate captions
+	\setbeamertemplate{background}{\includegraphics[height=\paperheight]{ISEE.pdf}}	% set background image
+	\setbeamertemplate{footline}{\footnotesize \insertframenumber/\inserttotalframenumber \hfill}	% display page number at bottom left corner	
+}
+\usepackage{CJKutf8}	% encode for Chinese
+\usepackage{times}		% font for english
+\usepackage{amsmath, amsfonts, amssymb}	% math equations, symbols
+\usepackage[english]{babel}
+\usepackage{multicol}
+\usepackage{color}		% color content
+\usepackage{graphicx}	% import figures
+\usepackage{url}		% hyperlinks
+\usepackage{bm}			% bold type for equations
+\usepackage{hyperref}	% bookmarks
+\hypersetup{bookmarks, unicode,}	% unicode
+
+\newcommand{\ftitle}[1]{\frametitle{\hspace{4ex} {#1}}}	% userdefine frametitle
+
+\begin{document}
+\begin{CJK}{UTF8}{song}	% all Chinese should be enclosed between the commands
+
+\title[]{Acceleration of Convolutional Neural Network Based on CPU-GPU Hybrid Programming}
+\author{ 薛盛可\thanks{ID: 11531015, e-mail: xueshengke@zju.edu.cn}，叶慧敏 \thanks{ID: 11531016, e-mail: 1042430841@qq.com}}
+\institute[ISEE]{\normalsize College of Information Science and Electronic Engineering\\~\\Zhejiang University}
+\date{Spring, 2016}
+
+\AtBeginSection[]
+{
+\begin{frame}
+   	\ftitle{Outline}
+   	\begin{multicols}{2}
+   	\tableofcontents[currentsection, currentsubsection]
+   	\end{multicols}
+\end{frame}
+}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\section*{Abstract}
+\begin{frame}
+	\ftitle{Abstract}
+	Objective:\\
+	We focus on accelerating the computation of an algorithm, namely Convolutional Neural Network (CNN), which is prevalent and widely employed in the field of computer vision, image classification, recognition, etc. \\
+	With the help of power of Graphics Processing Units (GPUs), we obtain considerable results on efficient computation. \\
+	~\\
+	Our presentation is organized as follows:
+\end{frame}
+
+\begin{frame}
+	\ftitle{Outline}
+	\begin{multicols}{2}
+		\tableofcontents[section, subsection]
+	\end{multicols}
+\end{frame}
+
+\section{Introduction to CNN}
+\begin{frame}
+	\ftitle{Convolutional Neural Network}
+	CNN, which is a special artificial neural network, is designed to process data that come in the form of multiple arrays, for example a color image composed of three 2D arrays containing pixel intensities in the three color channels. The rough model is given below,
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=\textwidth]{figure/CNN.png}
+	\end{figure}
+\end{frame}
+
+\subsection{Architecture}
+\begin{frame}
+	\ftitle{Architecture}
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.9\textwidth]{figure/CNN.pdf}
+	\end{figure}
+	CNN is structured as a series of stages: convolutional layers and pooling layers with fully-connected layers at last. Each unit in a feature map is connected to the local patches in the feature maps of previous layers through a set of weights called a filter bank.
+\end{frame}
+
+\subsection{Algorithm}
+\begin{frame}
+	\ftitle{Algorithm}
+		In the architecture above, there are hundreds of thousands of parameters inside. Hence massive computation is involved for updating them in training procedure.\\
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.8\textwidth]{figure/convolve.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.8\textwidth]{figure/pooling.png}
+	\end{minipage}\\
+	~\\
+	In fact, we compute each feature map in a layer one by one, which is an usual way to do. So the training process of CNN is time-consuming. But what will happen if we find out an approach that parallels the computation without altering the entire training procedure?
+\end{frame}
+
+\subsection{Application}
+\begin{frame}
+	\ftitle{Application}
+	\begin{itemize}
+		\item Image Classification \cite{ILSVRC15}
+		\item Object Detection \cite{girshick2015fast}
+		\item Face Recognition \cite{Sun_2014_CVPR}
+		\item Semantic Segmentation \cite{long2015fully} 
+	\end{itemize}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.6\textwidth]{figure/classification.png}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.9\textwidth]{figure/detection.png}
+	\end{minipage}\\
+	~\\
+	Current researches are leaded by academic institutions (New York University, University of Montréal, University of Toronto, UC Berkeley, Standford University, etc.) and enterprises (AI research of Google, Facebook, Microsoft, etc.).
+\end{frame}
+
+\section{CUDA}
+\begin{frame}
+	\ftitle{CUDA}
+	CUDA \footnote{\url{http://www.nvidia.com/object/cuda_home_new.html}} is a parallel computing platform and programming model invented by NVIDIA. It enables dramatic increases in computing performance by using the power of the graphics processing units (GPUs). With millions of CUDA-enabled GPUs sold to date, software developers, scientists and researchers are finding broad-ranging uses for GPU computing with CUDA. \\
+	~\\
+	Tesla, Quadro and GeForce series GPUs are capable to deploy CUDA.
+\end{frame}
+
+\subsection{Installation}
+\begin{frame}
+	\ftitle{Installation}
+	CUDA is well supported and cross-operating system. For we have {\color{red} CentOS 7 Linux} running already, we download CUDA 7.5 Toolkit and install it without much effort.\\
+	~\\
+	Our Graphics card is {\color{red} NVIDIA Quadro K4200}, \\
+	\begin{table}[htbp]
+	\begin{tabular}{ll}
+		CUDA cores	& 1344 \\
+		GPU Memory	& 4GB GDDR5 \\
+		Memory Interface &  256 bit \\
+		Memory Bandwidth & 173 GB/s  \\
+	\end{tabular}		
+	\end{table}
+	GPU Compute Capability \footnote{\url{https://developer.nvidia.com/cuda-gpus}}:
+	\begin{table}[htbp]
+		\begin{tabular}{ll}
+			GTX 1080	& 6.1 \\
+			\underline{Quadro K4200} & \underline{{\color{red} 3.0}}  \\
+			GTX960m &  5.0 
+		\end{tabular}		
+	\end{table}
+\end{frame}
+
+\section{Caffe}
+\begin{frame}
+	\ftitle{Caffe}
+	Caffe \cite{jia2014caffe} is a deep learning framework made with expression, speed, and modularity in mind.\\
+	~\\
+	It is developed by the Berkeley Vision and Learning Center (BVLC) and by community contributors. \\
+	~\\
+	Yangqing Jia created the project during his PhD at UC Berkeley.
+\end{frame}
+
+\begin{frame}
+	\ftitle{Caffe}
+	\begin{itemize}
+		\item Expressive architecture: Models and optimization are defined by configuration without hard-coding. Switch between CPU and GPU by setting a single flag to train on a GPU machine.
+		\item Extensible code: In Caffe's first year, it has been forked by over 1,000 developers and had many significant changes contributed back.
+		\item Speed: Make Caffe perfect for research experiments and industry deployment. Caffe can process over 60M images per day with a single NVIDIA K40 GPU. That's 1 ms/image for predicting and 4 ms/image for learning.
+		\item Community: Caffe already powers academic research projects, startup prototypes, and even large-scale industrial applications in vision, speech, and multimedia.
+	\end{itemize}
+\end{frame}
+
+%\begin{frame}
+%	\ftitle{Online Demo}
+%	\quad online demo provides an interface for image classification on its website. Merely you upload a image with a normal size, it yields the semantic meaning of what the image contains and the quantity of reliability.
+%	\begin{figure}[htbp]
+%		\centering
+%		\includegraphics[width = 0.88\textwidth]{figure/online_demo.jpg}
+%	\end{figure}
+%\end{frame}
+
+\subsection{Installation}
+\begin{frame}
+	\ftitle{Installation}
+	\begin{itemize}
+		\item read the tutorial;
+		\item download open-source code;
+		\item install prerequisites and dependences (CUDA, BLAS, Boost, protobuf, glog, gflags, hdf5,lmdb, leveldb, Python, OpenCV, $\cdots$);
+		\item compile all Caffe source code (about 3 hours compilation fully running on CPU);
+		\item finish. Ready for use.
+	\end{itemize}
+\end{frame}
+
+\subsection{Configuration}
+\begin{frame}
+	\ftitle{Configuration}
+	At first, Caffe deployment requires Linux operation system such as Ubuntu, RHEL, CentOS and Fedora. It goes through more complicated procedure although Caffe is compatible with Windows at present. Therefore, we choose {\color{red} CentOS} as our target.\\
+	~\\
+	Caffe is able to run on CPU certainly, which is a great waste. NVIDIA Graphics Card supporting CUDA with compute capability $\geqslant 3.0$ will reinforce the power of Caffe. Fortunately, we have {\color{red} Quadro K4200} available to use.\\
+	~\\
+	Installation process is not as easy as we think, for numerous problems (packages not found,  compilation with different parameters, the order of installation, difference of directory, etc.) which are not mentioned in tutorial, occurring in this period. In our case , it takes us {\color{red}four days} struggling with it.
+\end{frame}
+
+\subsection{Usage}
+\begin{frame}
+	\ftitle{Usage}
+	After Installation and compilation successfully, Caffe is prepared to use.\\
+	For instance, we want to a CNN algorithm for image classification. We go through the following steps:
+	\begin{enumerate}
+		\item download corresponding data set in lmdb format;
+		\item define a specific CNN model and write the code with {\color{red} Google Protobuf} (a mixed language data criterion);
+		\item set parameters (learning rate, weight decay term, momentum, training iterations and CPU or GPU mode);
+		\item train the CNN model with Caffe;
+		\item test the performance of the generated CNN model.
+	\end{enumerate}
+\end{frame}
+
+\begin{frame}
+	\ftitle{Protobuf}
+	It is invented by Google Inc., at first. Then it is contributed to open-source community and becomes very popular. It looks like this,\\
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{figure/protobuf.jpg}
+	\end{minipage}
+	\begin{minipage}{0.5\textwidth}
+		\centering
+		\includegraphics[width=0.6\textwidth]{figure/protobuf_code.jpg}
+	\end{minipage}	
+\end{frame}
+
+\section{Experiments}
+\subsection{Environment}
+\begin{frame}
+	\ftitle{Environment}
+	Linux Kernel: 3.10.0-327.4.4.el7.x86\_64 \\
+	Operating System: CentOS 7 Distribution \\
+	Memory: 128 GB \\
+	CPU: Intel Xeon(R) E5-2609 @ 1.90 GHz $\times$ 12 \\
+	Graphics: NVIDIA Quadro K4200, 4096 MB
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.7\textwidth]{figure/structure.pdf}
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\ftitle{Experiments}
+	We do experiments about image classification of CNN based on two well-known public datasets, i.e. MNIST and CIFAR-10. Each one of datasets are tested both on CPU (implemented by Matlab) and GPU (implemented by Caffe), respectively.
+\end{frame}
+
+\begin{frame}
+	\ftitle{MNIST}
+	MNIST \footnote{\url{http://yann.lecun.com/exdb/mnist/}} is a handwritten digits dataset composed of 60,000 training images and 10,000 test images with a 28x28 size. It has been used for examining various algorithms and the state-of-the-art performance is held by CNN with the classification accuracy 99.77 \% \cite{ciresan2012multi}.
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.3\textwidth]{figure/mnist.jpg}
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\ftitle{CIFAR-10}
+	\quad CIFAR-10\footnote{\url{http://www.cs.toronto.edu/~kriz/cifar.html}} is collected by Alex Krizhevsky and Geoffrey Hinton at University of Toronto. The dataset consists of 60,000 32x32 color images in 10 classes with 6,000 images per class. There 50,000 training images and 10,000 test images.
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.5\textwidth]{figure/cifar-10.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\ftitle{Design}
+	We design the following two CNN models for MNIST and CIFAR-10, respectively. \\
+	For MNIST:
+	\begin{table}[htbp]
+		\centering
+		\begin{tabular}{cc|cc}
+			conv1	&	5x5x20	&	fc1	&	500 \\
+			\hline
+			pool1	&	2x2	    &	fc2	&	10  \\
+			\hline
+			conv2	&	5x5x40	&	iteration	& 10000 \\
+			\hline
+			pool2	&	2x2  	&	learning rate & 0.01 
+		\end{tabular}
+	\end{table}
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.9\textwidth]{figure/CNN.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	For CIFAR-10:
+	\begin{table}[htbp]
+		\centering
+		\begin{tabular}{cc|cc}
+			conv1	&	5x5x32 pad: 2	&	fc1	&	64 \\
+			\hline
+			pool1	&	3x3 stride: 2	    &	fc2	&	10  \\
+			\hline
+			conv2	&	5x5x32 pad: 2	&	iteration	& 4000 \\
+			\hline
+			pool2	&	3x3 stride: 2  	&	learning rate & 0.001 \\
+			\hline
+			conv3	&	5x5x64 pad: 2	& & \\
+			\hline
+			pool3	&	3x3 stride: 2  	& &  
+		\end{tabular}
+	\end{table}
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.9\textwidth]{figure/CNN.png}
+	\end{figure}
+\end{frame}
+
+\subsection{on CPU}
+\begin{frame}
+	\ftitle{Running on CPU}
+	We implement our CNN algorithm through Matlab. The script includes these steps,
+	\begin{enumerate}
+		\item load dataset;
+		\item initiate the CNN model;
+		\item train our model using training set;
+		\item test our model using test set;
+		\item record the performance (elapsed time and accuracy).
+	\end{enumerate}
+\end{frame}
+
+\subsection{on GPU}
+\begin{frame}
+	\ftitle{Running on GPU}
+	\quad We implement our CNN algorithm through Caffe. The code fitting to protobuf only contains the definitions of exact parameters of CNN given previously, for the entire structure is accomplished and clear enough to modify. With a single command, all procedures run automatically.\\
+	\begin{minipage}{0.45\textwidth}
+	\begin{figure}
+		\centering
+		\includegraphics[width=0.85\textwidth]{figure/protobuf_data.jpg}
+	\end{figure}		
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+	\begin{figure}
+		\centering
+		\includegraphics[width=0.65\textwidth]{figure/protobuf_lenet.jpg}
+	\end{figure}
+	\end{minipage}
+\end{frame}
+
+\section{Comparison}
+\subsection{Performance}
+\begin{frame}
+	\ftitle{Performance}
+	We record the accuracy of two experiments. No surprisingly, algorithms distributed on CPU and GPU reveal the identical performance, as the figures illustrate,\\
+	~\\
+	\begin{minipage}{0.45\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{figure/mnist_accuracy.pdf}
+			\caption{Accuracy of CNN on MNIST}
+		\end{figure}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{0.45\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{figure/cifar_accuracy.pdf}
+			\caption{Accuracy of CNN on CIFAR-10}
+		\end{figure}		
+	\end{minipage}
+\end{frame}
+
+\subsection{Time Expenditure}
+\begin{frame}
+	\ftitle{Time Expenditure}
+	MNIST running on CPU takes 6554.47 seconds totally. Convolution occupies the majority of time, that is, 6190.27 seconds. \\
+	CIFAR-10 running on CPU takes 19125.40 seconds totally. Convolution occupies the majority of time, that is,  12220.82 seconds.\\
+	\begin{minipage}{0.45\textwidth}
+	\begin{figure}
+		\centering
+		\includegraphics[width=0.9\textwidth]{figure/mnist_cpu.pdf}
+		\caption{Elapsed time of CNN on MNIST}
+	\end{figure}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{0.45\textwidth}
+	\begin{figure}
+		\centering
+		\includegraphics[width=\textwidth]{figure/cifar_cpu.pdf}
+		\caption{Elapsed time of CNN on CIFAR-10}
+	\end{figure}		
+	\end{minipage}
+\end{frame}
+
+\begin{frame}
+	\ftitle{Time Expenditure}
+	However, with help of GPU involved in computation, MNIST running on CPU takes 242.28 seconds totally, which is quite efficient compared to CPU. \\
+	CIFAR-10 running on GPU takes 468.76 seconds, much faster than on CPU, too.\\
+	\begin{minipage}{0.45\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{figure/mnist_compare.pdf}
+			\caption{MNIST: comparison between CPU and GPU}
+		\end{figure}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{0.45\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=\textwidth]{figure/cifar_compare.pdf}
+			\caption{CIFAR-10: comparison between CPU and GPU}
+		\end{figure}		
+	\end{minipage}
+\end{frame}
+
+\section{Conclusion}
+\begin{frame}
+	\ftitle{Conclusion}
+	Current GPUs, paired with a highly-optimized implementation of 2D convolution, are powerful enough to facilitate the training of large CNNs with {\color{red}dozens of times faster} than preceding one on CPU. \\
+	~\\
+	The acceleration of computation in CNNs using GPUs has been proved to be a successful leap, saving valuable time on researches. 
+\end{frame}
+
+\section{References}
+\begin{frame}[allowframebreaks]
+	\ftitle{References}
+	\bibliographystyle{apalike}
+	\bibliography{reference}
+\end{frame}
+
+\section*{Thanks}
+\begin{frame}
+	\ftitle{End}
+	\Huge Thanks for your listening. \\
+	感谢！
+\end{frame}
+
+\end{CJK}
+\end{document}
